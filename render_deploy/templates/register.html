@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register – MFA Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0f1117;--card:#13151f;--dim:#1e2133;--text:#e8eaf6;--muted:#5a5f78;--blue:#5B8DEF;--green:#34C47C;--red:#EF5B5B; }
+body { background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px; }
+.demo-banner { position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#7c4a00,#b36b00);color:#ffe0a0;font-size:13px;text-align:center;padding:8px 16px;z-index:100; }
+.demo-banner a { color:#ffd080; }
+.card { background:var(--card);border-radius:16px;padding:32px;width:100%;max-width:420px;margin-top:48px;box-shadow:0 8px 32px rgba(0,0,0,.4); }
+.card-title { font-size:22px;font-weight:700;margin-bottom:4px; }
+.card-sub   { font-size:13px;color:var(--muted);margin-bottom:24px; }
+label { font-size:12px;color:var(--muted);display:block;margin-bottom:6px;margin-top:14px; }
+input { width:100%;background:var(--dim);border:none;border-radius:8px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;transition:box-shadow .2s; }
+input:focus { box-shadow:0 0 0 2px var(--blue); }
+.btn { width:100%;padding:13px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:20px;transition:opacity .2s; }
+.btn-blue { background:var(--blue);color:#fff; }
+.btn:disabled { opacity:.5;cursor:not-allowed; }
+.msg { font-size:13px;margin-top:10px;min-height:18px; }
+.msg.error   { color:var(--red); }
+.msg.success { color:var(--green); }
+.msg.info    { color:var(--muted); }
+.face-wrap { position:relative;width:180px;height:180px;margin:20px auto;border-radius:50%;overflow:hidden;background:#000;border:3px solid var(--dim); }
+.face-wrap video { width:100%;height:100%;object-fit:cover;transform:scaleX(-1); }
+.face-ring { position:absolute;inset:-4px;border-radius:50%;border:3px solid transparent;border-top-color:var(--blue);animation:spin 1.2s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.back-link { display:block;text-align:center;margin-top:16px;font-size:12px;color:var(--muted);text-decoration:none; }
+.back-link:hover { color:var(--blue); }
+.note { font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="demo-banner">
+  🧪 Demo Mode — Face captured locally, not stored server-side &nbsp;|&nbsp;
+  <a href="https://github.com/chapranaatharva/mfa-system" target="_blank">Full version on GitHub →</a>
+</div>
+
+<div class="card">
+  <div class="card-title">Register</div>
+  <div class="card-sub">Create your MFA account</div>
+
+  <label>Full name</label>
+  <input type="text" id="name" placeholder="Jane Smith">
+  <label>Email address</label>
+  <input type="email" id="email" placeholder="jane@example.com">
+
+  <div class="face-wrap" id="face-wrap" style="display:none">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="face-ring"></div>
+  </div>
+
+  <button class="btn btn-blue" id="reg-btn" onclick="startRegister()">Open Camera & Register</button>
+  <div class="msg info" id="msg"></div>
+
+  <div class="note">
+    ℹ️ In the full desktop version, face encodings are stored locally and used for real face recognition. In this demo, registration is simulated.
+  </div>
+</div>
+
+<a class="back-link" href="/">← Back to login</a>
+
+<script>
+let stream = null;
+
+async function startRegister() {
+  const name  = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  if (!name)  { showMsg('Please enter your name.','error'); return; }
+  if (!email || !email.includes('@')) { showMsg('Please enter a valid email.','error'); return; }
+
+  const btn = document.getElementById('reg-btn');
+  btn.disabled = true; btn.textContent = 'Opening camera…';
+
+  try {
+    stream = document.getElementById('video').srcObject =
+      await navigator.mediaDevices.getUserMedia({video:true});
+    document.getElementById('face-wrap').style.display = 'block';
+    showMsg('Hold still for 3 seconds…','info');
+    await delay(3000);
+    showMsg(`✓ ${name} registered successfully! You can now log in.`,'success');
+    btn.textContent = 'Register another';
+    btn.disabled = false;
+    btn.onclick = () => { stopCamera(); document.getElementById('face-wrap').style.display='none'; btn.textContent='Open Camera & Register'; btn.onclick=startRegister; document.getElementById('name').value=''; document.getElementById('email').value=''; showMsg('','info'); };
+    stopCamera();
+  } catch {
+    showMsg('Camera access denied. Please allow camera and try again.','error');
+    btn.disabled=false; btn.textContent='Open Camera & Register';
+  }
+}
+
+function showMsg(text,type) {
+  const el = document.getElementById('msg');
+  el.textContent=text; el.className='msg '+(type||'info');
+}
+function stopCamera() {
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+}
+function delay(ms) { return new Promise(r=>setTimeout(r,ms)); }
+</script>
+</body>
+</html>

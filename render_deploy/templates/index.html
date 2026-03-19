@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MFA System – Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1117; --card: #13151f; --dim: #1e2133;
+  --text: #e8eaf6; --muted: #5a5f78; --blue: #5B8DEF;
+  --green: #34C47C; --red: #EF5B5B; --orange: #F5A623;
+}
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif;
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+
+/* Demo banner */
+.demo-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: linear-gradient(90deg, #7c4a00, #b36b00);
+  color: #ffe0a0; font-size: 13px; text-align: center;
+  padding: 8px 16px; z-index: 100; letter-spacing: 0.3px;
+}
+.demo-banner a { color: #ffd080; }
+
+.container { width: 100%; max-width: 420px; margin-top: 36px; }
+
+.card {
+  background: var(--card); border-radius: 16px;
+  padding: 32px; margin-bottom: 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.card-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.card-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+input[type=email], input[type=text] {
+  width: 100%; background: var(--dim); border: none; border-radius: 8px;
+  padding: 12px 14px; color: var(--text); font-size: 15px; outline: none;
+  transition: box-shadow .2s;
+}
+input:focus { box-shadow: 0 0 0 2px var(--blue); }
+
+.btn {
+  width: 100%; padding: 13px; border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px;
+  transition: opacity .2s, transform .1s;
+}
+.btn:active { transform: scale(.98); }
+.btn-blue  { background: var(--blue);  color: #fff; }
+.btn-green { background: var(--green); color: #0a1f14; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+.msg.error   { color: var(--red); }
+.msg.success { color: var(--green); }
+.msg.info    { color: var(--muted); }
+
+.step { display: none; }
+.step.active { display: block; }
+
+/* OTP input */
+.otp-wrap { display: flex; gap: 8px; margin: 4px 0; }
+.otp-wrap input {
+  flex: 1; text-align: center; font-size: 22px; font-weight: 700;
+  letter-spacing: 4px; padding: 14px 8px;
+}
+
+/* Face scan */
+.face-wrap {
+  position: relative; width: 220px; height: 220px; margin: 0 auto 20px;
+  border-radius: 50%; overflow: hidden; background: #000;
+  border: 3px solid var(--dim);
+}
+.face-wrap video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.face-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid var(--blue); pointer-events: none;
+  transition: border-color .4s;
+}
+.face-overlay.success { border-color: var(--green); }
+.scan-ring {
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 3px solid transparent; border-top-color: var(--blue);
+  animation: spin 1.2s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.scan-status { text-align: center; font-size: 15px; font-weight: 600; }
+.scan-sub    { text-align: center; font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+.progress-wrap { margin: 16px 0; background: var(--dim); border-radius: 99px; height: 6px; overflow: hidden; }
+.progress-bar  { height: 100%; background: var(--blue); border-radius: 99px; width: 0; transition: width .1s linear; }
+
+/* Granted card */
+.granted-icon { font-size: 48px; text-align: center; margin-bottom: 8px; }
+.granted-name { font-size: 20px; font-weight: 700; text-align: center; }
+.granted-email { font-size: 13px; color: var(--muted); text-align: center; margin-top: 4px; }
+
+/* Footer links */
+.footer-links {
+  display: flex; justify-content: center; gap: 24px; margin-top: 16px;
+}
+.footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
+.footer-links a:hover { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  🧪 Demo Mode — OTP is real, face scan is simulated &nbsp;|&nbsp;
+  <a href="https://github.com/chapranaatharva/mfa-system" target="_blank">View full source on GitHub →</a>
+</div>
+
+<div class="container">
+  <div class="card">
+
+    <!-- Step 1: Email + OTP -->
+    <div id="step1" class="step active">
+      <div class="card-title">Sign in</div>
+      <div class="card-sub">Multi-Factor Authentication — Demo</div>
+      <label>Email address</label>
+      <input type="email" id="email-input" placeholder="you@example.com" autocomplete="email">
+      <button class="btn btn-blue" id="send-otp-btn" onclick="sendOTP()">Send OTP</button>
+      <div class="msg info" id="step1-msg"></div>
+    </div>
+
+    <!-- Step 2: Verify OTP -->
+    <div id="step2" class="step">
+      <div class="card-title">Enter your code</div>
+      <div class="card-sub" id="step2-sub">Check your email for a 6-digit code.</div>
+      <label>Verification code</label>
+      <div class="otp-wrap">
+        <input type="text" id="otp-input" maxlength="6" placeholder="000000" inputmode="numeric">
+      </div>
+      <button class="btn btn-blue" onclick="verifyOTP()">Verify Code</button>
+      <div class="msg info" id="step2-msg"></div>
+      <div style="margin-top:12px;text-align:center">
+        <a href="#" style="font-size:12px;color:var(--muted)" onclick="goBack()">← Use a different email</a>
+      </div>
+    </div>
+
+    <!-- Step 3: Face scan -->
+    <div id="step3" class="step">
+      <div class="card-title" style="text-align:center;margin-bottom:16px">Face Verification</div>
+      <div class="face-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="face-overlay" id="face-overlay"></div>
+        <div class="scan-ring" id="scan-ring"></div>
+      </div>
+      <div class="scan-status" id="scan-status">Initialising camera…</div>
+      <div class="scan-sub"    id="scan-sub">Please wait</div>
+      <div class="progress-wrap" id="progress-wrap" style="display:none">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="msg info" id="step3-msg" style="text-align:center"></div>
+    </div>
+
+    <!-- Step 4: Granted -->
+    <div id="step4" class="step">
+      <div class="granted-icon">✅</div>
+      <div class="granted-name" id="granted-name">Welcome!</div>
+      <div class="granted-email" id="granted-email"></div>
+      <button class="btn btn-green" style="margin-top:24px" onclick="signOut()">Sign out</button>
+    </div>
+
+  </div>
+
+  <div class="footer-links">
+    <a href="/register">+ Register new user</a>
+    <a href="/admin">Admin Dashboard →</a>
+  </div>
+</div>
+
+<script>
+let stream = null;
+let scanTimer = null;
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+// ── Step 1: Send OTP ────────────────────────────────────────────────────────
+async function sendOTP() {
+  const email = document.getElementById('email-input').value.trim();
+  const btn   = document.getElementById('send-otp-btn');
+  if (!email || !email.includes('@')) {
+    showMsg('step1-msg', 'Please enter a valid email.', 'error'); return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  showMsg('step1-msg', '', 'info');
+  try {
+    const r = await fetch('/api/send-otp', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email})
+    });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('step2-sub').textContent =
+        d.demo_otp
+          ? `[Demo] Your OTP is: ${d.demo_otp}`
+          : `Code sent to ${email}`;
+      showStep(2);
+    } else {
+      showMsg('step1-msg', d.message, 'error');
+    }
+  } catch { showMsg('step1-msg', 'Network error. Try again.', 'error'); }
+  finally   { btn.disabled = false; btn.textContent = 'Send OTP'; }
+}
+
+// ── Step 2: Verify OTP ──────────────────────────────────────────────────────
+async function verifyOTP() {
+  const email = document.getElementById('email-input').value.trim();
+  const otp   = document.getElementById('otp-input').value.trim();
+  if (otp.length !== 6) { showMsg('step2-msg','Enter the 6-digit code.','error'); return; }
+  showMsg('step2-msg','Verifying…','info');
+  try {
+    const r = await fetch('/api/verify-otp', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, otp})
+    });
+    const d = await r.json();
+    if (d.success) { showStep(3); startFaceScan(); }
+    else showMsg('step2-msg', d.message, 'error');
+  } catch { showMsg('step2-msg','Network error.','error'); }
+}
+
+function goBack() {
+  document.getElementById('otp-input').value = '';
+  showStep(1);
+}
+
+// ── Step 3: Simulated face scan ─────────────────────────────────────────────
+async function startFaceScan() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video: true});
+    document.getElementById('video').srcObject = stream;
+  } catch {
+    document.getElementById('scan-status').textContent = 'Camera unavailable';
+    document.getElementById('scan-sub').textContent = 'Continuing in demo mode…';
+  }
+
+  // Phase 1: align (1.5s)
+  setScanState('Position your face', 'Move into the frame', false);
+  await delay(1500);
+
+  // Phase 2: scanning with progress bar (3s)
+  setScanState('Scanning', 'Hold still…', true);
+  await animateProgress(3000);
+
+  // Phase 3: success
+  document.getElementById('face-overlay').classList.add('success');
+  document.getElementById('scan-ring').style.borderTopColor = 'var(--green)';
+  setScanState('Face verified ✓', '', false);
+  await delay(800);
+
+  stopCamera();
+  grantAccess();
+}
+
+function setScanState(status, sub, showProgress) {
+  document.getElementById('scan-status').textContent = status;
+  document.getElementById('scan-sub').textContent    = sub;
+  document.getElementById('progress-wrap').style.display = showProgress ? 'block' : 'none';
+  if (!showProgress) document.getElementById('progress-bar').style.width = '0';
+}
+
+function animateProgress(durationMs) {
+  return new Promise(resolve => {
+    const bar = document.getElementById('progress-bar');
+    const start = performance.now();
+    function frame(now) {
+      const pct = Math.min((now - start) / durationMs * 100, 100);
+      bar.style.width = pct + '%';
+      if (pct < 100) requestAnimationFrame(frame);
+      else resolve();
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+async function grantAccess() {
+  const email = document.getElementById('email-input').value.trim();
+  const r = await fetch('/api/verify-face', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email})
+  });
+  const d = await r.json();
+  if (d.success) {
+    document.getElementById('granted-name').textContent  = `Welcome, ${d.name}!`;
+    document.getElementById('granted-email').textContent = d.email;
+    showStep(4);
+  } else {
+    showMsg('step3-msg', d.message || 'Authentication failed.', 'error');
+  }
+}
+
+async function signOut() {
+  await fetch('/api/logout', {method:'POST'});
+  document.getElementById('email-input').value = '';
+  document.getElementById('otp-input').value   = '';
+  document.getElementById('face-overlay').classList.remove('success');
+  showStep(1);
+}
+
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+document.getElementById('email-input').addEventListener('keydown', e => { if(e.key==='Enter') sendOTP(); });
+document.getElementById('otp-input').addEventListener('keydown',   e => { if(e.key==='Enter') verifyOTP(); });
+</script>
+</body>
+</html>
