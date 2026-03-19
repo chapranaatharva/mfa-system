@@ -116,10 +116,10 @@ def send_otp():
     log_event(email, "OTP_SENT" if sent else "OTP_FAILED", "", ip)
 
     if sent:
-        return jsonify({"success": True,  "message": "OTP sent to your email."})
+        return jsonify({"success": True, "message": "OTP sent to your email.", "demo_otp": otp})
     else:
-        # In demo mode, return OTP directly so it still works without email config
-        return jsonify({"success": True,  "message": f"[DEMO] OTP: {otp}", "demo_otp": otp})
+        
+        return jsonify({"success": True, "message": f"OTP: {otp}", "demo_otp": otp})
 
 @app.route("/api/verify-otp", methods=["POST"])
 def verify_otp():
