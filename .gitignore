@@ -1,0 +1,10 @@
+.env
+*.db
+__pycache__/
+*.pyc
+venv/
+.venv/
+flask_session/
+flask_app/flask_session/
+.idea/
+known_face.jpg
