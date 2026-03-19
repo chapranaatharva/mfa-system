@@ -61,8 +61,9 @@ def send_otp_email(to_email, otp):
           <p style="color:#5a5f78;font-size:13px">Valid for 5 minutes. Don't share this code.</p>
         </div></body></html>"""
         msg.attach(MIMEText(body, "html"))
-        ctx = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as s:
+        with smtplib.SMTP("smtp.gmail.com", 587) as s:
+            s.ehlo()
+            s.starttls()
             s.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
             s.sendmail(EMAIL_ADDRESS, to_email, msg.as_string())
         return True
