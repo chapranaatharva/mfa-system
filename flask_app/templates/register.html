@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — MFA System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:    #0f1117;
+    --card:  #13151f;
+    --dim:   #1e2133;
+    --text:  #e8eaf6;
+    --muted: #5a5f78;
+    --blue:  #5B8DEF;
+    --green: #34C47C;
+    --red:   #EF5B5B;
+    --purple:#9B72F5;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh; display: flex;
+    align-items: center; justify-content: center; padding: 24px;
+  }
+
+  .container { width: 100%; max-width: 460px; }
+
+  .header { margin-bottom: 28px; }
+  .header h1 { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .header p  { font-size: 13px; color: var(--muted); }
+  .back-link { font-size: 12px; color: var(--blue); text-decoration: none; display: inline-block; margin-bottom: 20px; }
+  .back-link:hover { text-decoration: underline; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--dim);
+    border-radius: 16px; padding: 28px; margin-bottom: 16px;
+  }
+
+  .step-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
+  .step-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+
+  .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+  .form-group { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+
+  input[type="text"], input[type="email"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--dim);
+    border-radius: 8px; padding: 10px 14px; font-size: 14px;
+    color: var(--text); outline: none; transition: border-color .2s;
+  }
+  input:focus { border-color: var(--blue); }
+
+  .btn {
+    width: 100%; padding: 11px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .btn:active  { transform: scale(.98); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-blue  { background: var(--blue);  color: #fff; }
+  .btn-green { background: var(--green); color: #0a1f14; }
+  .btn-dim   { background: var(--dim);   color: var(--muted); }
+
+  .msg { font-size: 13px; margin-top: 12px; min-height: 20px; }
+  .msg.ok   { color: var(--green); }
+  .msg.err  { color: var(--red); }
+  .msg.info { color: var(--muted); }
+
+  /* Camera section */
+  .camera-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 16px; padding: 8px 0 16px;
+  }
+
+  .cam-ring {
+    position: relative; width: 180px; height: 180px;
+  }
+  .cam-ring svg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  }
+  .cam-inner {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 130px; height: 130px; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--dim);
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+
+  #cam-video, #cam-snapshot {
+    width: 130px; height: 130px;
+    object-fit: cover; border-radius: 50%;
+    transform: scaleX(-1);
+  }
+  #cam-snapshot { display: none; filter: brightness(1); }
+
+  .cam-status { font-size: 14px; font-weight: 600; color: var(--text); text-align: center; }
+  .cam-sub    { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* Countdown ring */
+  .countdown-ring {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    transform: rotate(-90deg);
+  }
+  .countdown-circle {
+    fill: none; stroke: var(--green); stroke-width: 3;
+    stroke-dasharray: 502; stroke-dashoffset: 502;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke .3s;
+  }
+
+  /* Arc animation */
+  .arc-idle {
+    animation: arc-rotate 2s linear infinite;
+    transform-origin: 90px 90px;
+  }
+  @keyframes arc-rotate { to { transform: rotate(360deg); } }
+
+  /* Steps indicator */
+  .steps-indicator {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 20px;
+  }
+  .step-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dim); transition: background .3s;
+  }
+  .step-dot.active { background: var(--blue); }
+  .step-dot.done   { background: var(--green); }
+  .step-line { flex: 1; height: 1px; background: var(--dim); }
+
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid transparent;
+    border-top-color: currentColor; border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: inline-block; vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Success card */
+  #success-card { display: none; text-align: center; }
+  .success-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: #0d2018; border: 2px solid var(--green);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px; font-size: 28px;
+  }
+  .success-name { font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+  .success-sub  { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <a href="/" class="back-link">← Back to login</a>
+
+  <div class="header">
+    <h1>Register Face</h1>
+    <p>Add a new user to the MFA system</p>
+  </div>
+
+  <!-- Steps indicator -->
+  <div class="steps-indicator">
+    <div class="step-dot active" id="sdot-1"></div>
+    <div class="step-line"></div>
+    <div class="step-dot" id="sdot-2"></div>
+    <div class="step-line"></div>
+    <div class="step-dot" id="sdot-3"></div>
+  </div>
+
+  <!-- Step 1: Details -->
+  <div class="card" id="details-card">
+    <div class="step-label">Step 1</div>
+    <div class="step-title">Your details</div>
+    <div class="form-row">
+      <div class="form-group">
+        <div class="form-label">Name</div>
+        <input type="text" id="name-input" placeholder="Atharva" />
+      </div>
+      <div class="form-group">
+        <div class="form-label">Email</div>
+        <input type="email" id="email-input" placeholder="you@example.com" />
+      </div>
+    </div>
+    <button class="btn btn-blue" onclick="goToCamera()">Continue to Face Capture</button>
+    <div class="msg" id="details-msg"></div>
+  </div>
+
+  <!-- Step 2: Camera -->
+  <div class="card" id="camera-card" style="display:none;">
+    <div class="step-label">Step 2</div>
+    <div class="step-title">Face capture</div>
+
+    <div class="camera-wrap">
+      <div class="cam-ring">
+        <!-- Idle arc -->
+        <svg viewBox="0 0 180 180" id="idle-svg">
+          <circle cx="90" cy="90" r="80" stroke="#1e2133" stroke-width="1" fill="none"/>
+          <g class="arc-idle">
+            <path d="M90 10 A80 80 0 0 1 170 90" stroke="#5B8DEF" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+          </g>
+        </svg>
+        <!-- Countdown ring (shown during capture) -->
+        <svg class="countdown-ring" id="countdown-svg" style="display:none;" viewBox="0 0 180 180">
+          <circle cx="90" cy="90" r="80" class="countdown-circle" id="countdown-circle"/>
+        </svg>
+        <div class="cam-inner">
+          <video id="cam-video" autoplay playsinline muted></video>
+          <img  id="cam-snapshot" alt="captured face"/>
+        </div>
+      </div>
+
+      <div>
+        <div class="cam-status" id="cam-status">Starting camera...</div>
+        <div class="cam-sub"    id="cam-sub">Please wait</div>
+      </div>
+    </div>
+
+    <button class="btn btn-green" id="capture-btn" onclick="startCapture()" disabled>
+      Capture Face
+    </button>
+    <button class="btn btn-dim" onclick="retake()" id="retake-btn" style="display:none;margin-top:10px;">
+      Retake
+    </button>
+    <div class="msg" id="camera-msg"></div>
+  </div>
+
+  <!-- Step 3: Confirm & Save -->
+  <div class="card" id="confirm-card" style="display:none;">
+    <div class="step-label">Step 3</div>
+    <div class="step-title">Confirm & save</div>
+    <div style="background:var(--bg);border:1px solid var(--dim);border-radius:8px;padding:14px 16px;margin-bottom:16px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Registering as</div>
+      <div style="font-size:15px;font-weight:600;" id="confirm-name"></div>
+      <div style="font-size:12px;color:var(--muted);font-family:monospace;margin-top:2px;" id="confirm-email"></div>
+    </div>
+    <button class="btn btn-green" id="save-btn" onclick="saveUser()">Save & Register</button>
+    <button class="btn btn-dim" onclick="retake()" style="margin-top:10px;">← Retake photo</button>
+    <div class="msg" id="confirm-msg"></div>
+  </div>
+
+  <!-- Success -->
+  <div class="card" id="success-card">
+    <div class="success-icon">✓</div>
+    <div class="success-name" id="success-name"></div>
+    <div class="success-sub">Registered successfully. You can now log in.</div>
+    <button class="btn btn-green" onclick="location.href='/'">Go to Login</button>
+    <button class="btn btn-dim" onclick="registerAnother()" style="margin-top:10px;">Register another user</button>
+  </div>
+
+</div>
+
+<script>
+let stream         = null;
+let capturedImage  = null;
+let countdownTimer = null;
+
+// ── Step 1 → Step 2 ───────────────────────────────────────────────
+function goToCamera() {
+  const name  = document.getElementById('name-input').value.trim();
+  const email = document.getElementById('email-input').value.trim();
+  if (!name)  { showMsg('details-msg', 'Enter your name.', 'err');  return; }
+  if (!email.includes('@') || !email.includes('.')) {
+    showMsg('details-msg', 'Enter a valid email.', 'err'); return;
+  }
+  document.getElementById('details-card').style.display = 'none';
+  document.getElementById('camera-card').style.display  = 'block';
+  setStep(2);
+  startCamera();
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video: true});
+    const video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    await video.play();
+    document.getElementById('cam-status').textContent = 'Position your face';
+    document.getElementById('cam-sub').textContent    = 'Centre your face in the circle';
+    document.getElementById('capture-btn').disabled   = false;
+  } catch(e) {
+    document.getElementById('cam-status').textContent = 'Camera error';
+    document.getElementById('cam-sub').textContent    = e.message;
+    showMsg('camera-msg', 'Could not access camera: ' + e.message, 'err');
+  }
+}
+
+// ── Capture with 3s countdown ─────────────────────────────────────
+function startCapture() {
+  document.getElementById('capture-btn').disabled = true;
+  document.getElementById('idle-svg').style.display      = 'none';
+  document.getElementById('countdown-svg').style.display = 'block';
+
+  const circle = document.getElementById('countdown-circle');
+  const total  = 502;
+  let remaining = 3;
+
+  document.getElementById('cam-status').textContent = `Hold still`;
+  document.getElementById('cam-sub').textContent    = `Capturing in ${remaining}...`;
+
+  // Animate countdown ring
+  circle.style.strokeDashoffset = total;
+  setTimeout(() => {
+    circle.style.transition      = `stroke-dashoffset 3s linear`;
+    circle.style.strokeDashoffset = 0;
+  }, 50);
+
+  countdownTimer = setInterval(() => {
+    remaining--;
+    if (remaining > 0) {
+      document.getElementById('cam-sub').textContent = `Capturing in ${remaining}...`;
+    } else {
+      clearInterval(countdownTimer);
+      captureFrame();
+    }
+  }, 1000);
+}
+
+function captureFrame() {
+  const video  = document.getElementById('cam-video');
+  const canvas = document.createElement('canvas');
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  // Mirror to match what user sees
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+  capturedImage = canvas.toDataURL('image/jpeg', 0.9);
+
+  // Show snapshot
+  const snap = document.getElementById('cam-snapshot');
+  snap.src = capturedImage;
+  snap.style.display = 'block';
+  document.getElementById('cam-video').style.display = 'none';
+
+  document.getElementById('cam-status').textContent = 'Face captured ✓';
+  document.getElementById('cam-sub').textContent    = 'Looking good!';
+  document.getElementById('countdown-svg').style.display = 'none';
+  document.getElementById('idle-svg').style.display      = 'block';
+  document.getElementById('retake-btn').style.display    = 'block';
+
+  // Move to confirm
+  setTimeout(goToConfirm, 800);
+}
+
+function retake() {
+  capturedImage = null;
+  clearInterval(countdownTimer);
+
+  // Reset camera view
+  document.getElementById('cam-snapshot').style.display = 'none';
+  document.getElementById('cam-video').style.display    = 'block';
+  document.getElementById('retake-btn').style.display   = 'none';
+  document.getElementById('capture-btn').disabled       = false;
+  document.getElementById('idle-svg').style.display     = 'block';
+  document.getElementById('countdown-svg').style.display= 'none';
+  document.getElementById('cam-status').textContent     = 'Position your face';
+  document.getElementById('cam-sub').textContent        = 'Centre your face in the circle';
+
+  document.getElementById('confirm-card').style.display = 'none';
+  document.getElementById('camera-card').style.display  = 'block';
+  setStep(2);
+}
+
+// ── Step 3: Confirm ───────────────────────────────────────────────
+function goToConfirm() {
+  const name  = document.getElementById('name-input').value.trim();
+  const email = document.getElementById('email-input').value.trim();
+  document.getElementById('confirm-name').textContent  = name;
+  document.getElementById('confirm-email').textContent = email;
+  document.getElementById('camera-card').style.display  = 'none';
+  document.getElementById('confirm-card').style.display = 'block';
+  setStep(3);
+}
+
+// ── Save user ─────────────────────────────────────────────────────
+async function saveUser() {
+  const name  = document.getElementById('name-input').value.trim();
+  const email = document.getElementById('email-input').value.trim();
+  const btn   = document.getElementById('save-btn');
+
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spinner"></span>Processing face...';
+  showMsg('confirm-msg', 'Extracting face encoding...', 'info');
+
+  const res  = await fetch('/api/register-face', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, email, image: capturedImage})
+  });
+  const data = await res.json();
+
+  btn.disabled  = false;
+  btn.innerHTML = 'Save & Register';
+
+  if (!data.ok) {
+    showMsg('confirm-msg', data.error, 'err'); return;
+  }
+
+  // Success
+  stopCamera();
+  document.getElementById('confirm-card').style.display  = 'none';
+  document.getElementById('success-card').style.display  = 'block';
+  document.getElementById('success-name').textContent    = `Welcome, ${name}!`;
+  setStep(4);
+}
+
+function registerAnother() {
+  capturedImage = null;
+  document.getElementById('name-input').value  = '';
+  document.getElementById('email-input').value = '';
+  document.getElementById('success-card').style.display  = 'none';
+  document.getElementById('details-card').style.display  = 'block';
+  document.getElementById('cam-snapshot').style.display  = 'none';
+  document.getElementById('cam-video').style.display     = 'block';
+  setStep(1);
+  startCamera();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function setStep(n) {
+  ['sdot-1','sdot-2','sdot-3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'step-dot' +
+      (i + 1 < n ? ' done' : i + 1 === n ? ' active' : '');
+  });
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className   = `msg ${type}`;
+}
+
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+</script>
+</body>
+</html>

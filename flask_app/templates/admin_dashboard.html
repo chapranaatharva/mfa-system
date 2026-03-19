@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MFA Admin Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #080b12;
+    --surface: #0d1117;
+    --card:    #111520;
+    --border:  #1a1f2e;
+    --border2: #232840;
+    --text:    #cdd6f4;
+    --muted:   #45475a;
+    --dim:     #313244;
+    --blue:    #89b4fa;
+    --green:   #a6e3a1;
+    --red:     #f38ba8;
+    --yellow:  #f9e2af;
+    --purple:  #cba6f7;
+    --teal:    #94e2d5;
+    --mono:    'JetBrains Mono', monospace;
+    --sans:    'DM Sans', sans-serif;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; }
+
+  /* ── Sidebar ── */
+  .sidebar { width: 220px; min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; flex-shrink: 0; }
+  .logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .logo-mark { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; }
+  .logo-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; color: var(--muted); cursor: pointer; border-left: 2px solid transparent; transition: all .15s; text-decoration: none; }
+  .nav-item:hover { color: var(--text); background: var(--card); }
+  .nav-item.active { color: var(--blue); border-left-color: var(--blue); background: rgba(137,180,250,.06); }
+  .nav-icon { font-size: 14px; width: 16px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px 0; border-top: 1px solid var(--border); }
+  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  .status-text { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .refresh-btn { font-family: var(--mono); font-size: 11px; padding: 6px 14px; background: var(--card); border: 1px solid var(--border2); color: var(--muted); border-radius: 6px; cursor: pointer; transition: all .15s; }
+  .refresh-btn:hover { color: var(--text); border-color: var(--dim); }
+  .last-updated { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* ── Pages ── */
+  .page { display: none; flex: 1; overflow-y: auto; padding: 28px 32px; }
+  .page.active { display: block; }
+
+  /* ── Stat grid ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; position: relative; overflow: hidden; transition: border-color .2s; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent-color); opacity: .6; }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 10px; font-family: var(--mono); }
+  .stat-value { font-size: 26px; font-weight: 600; color: var(--accent-color); font-family: var(--mono); line-height: 1; }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Section header ── */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .section-badge { font-family: var(--mono); font-size: 10px; padding: 2px 8px; background: var(--border); border-radius: 20px; color: var(--muted); }
+
+  /* ── Table ── */
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+  th { text-align: left; padding: 10px 16px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-family: var(--mono); font-weight: 400; }
+  td { padding: 11px 16px; font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border); font-family: var(--mono); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background .1s; }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+
+  /* ── Badge ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: .04em; font-family: var(--mono); }
+  .badge-green  { background: rgba(166,227,161,.12); color: var(--green); }
+  .badge-red    { background: rgba(243,139,168,.12); color: var(--red); }
+  .badge-yellow { background: rgba(249,226,175,.12); color: var(--yellow); }
+  .badge-blue   { background: rgba(137,180,250,.12); color: var(--blue); }
+  .badge-muted  { background: var(--border); color: var(--muted); }
+
+  /* ── Bottom grid ── */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mini-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .mini-title { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-family: var(--mono); margin-bottom: 16px; }
+
+  /* ── Bar chart ── */
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .bar { width: 100%; border-radius: 3px 3px 0 0; transition: opacity .2s; min-height: 4px; }
+  .bar:hover { opacity: .7; }
+  .bar-label { font-size: 9px; color: var(--muted); font-family: var(--mono); }
+
+  /* ── Sessions ── */
+  .session-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+  .session-item:last-child { border-bottom: none; }
+  .session-email { color: var(--blue); font-family: var(--mono); }
+  .session-time  { color: var(--muted); font-family: var(--mono); }
+
+  /* ── Users page ── */
+  .user-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(137,180,250,.15); border: 1px solid var(--blue); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--blue); margin-right: 14px; flex-shrink: 0; font-family: var(--mono); }
+  .user-info { flex: 1; }
+  .user-name  { font-size: 13px; font-weight: 500; color: var(--text); }
+  .user-email { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .user-meta  { font-size: 10px; color: var(--muted); font-family: var(--mono); text-align: right; }
+
+  /* ── Empty ── */
+  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 12px; font-family: var(--mono); }
+
+  /* ── Search bar ── */
+  .search-bar { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 12px; color: var(--text); font-family: var(--mono); outline: none; width: 220px; transition: border-color .2s; }
+  .search-bar:focus { border-color: var(--blue); }
+  .search-bar::placeholder { color: var(--muted); }
+
+  /* ── Filter tabs ── */
+  .filter-tabs { display: flex; gap: 6px; }
+  .filter-tab { font-family: var(--mono); font-size: 10px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; transition: all .15s; }
+  .filter-tab.active { background: rgba(137,180,250,.1); border-color: var(--blue); color: var(--blue); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">MFA System</div>
+    <div class="logo-title">Admin Panel</div>
+  </div>
+  <nav>
+    <a class="nav-item active" onclick="showPage('overview', this)">
+      <span class="nav-icon">▦</span> Overview
+    </a>
+    <a class="nav-item" onclick="showPage('logs', this)">
+      <span class="nav-icon">◎</span> Auth Logs
+    </a>
+    <a class="nav-item" onclick="showPage('users', this)">
+      <span class="nav-icon">◈</span> Users
+    </a>
+    <a class="nav-item" onclick="showPage('sessions', this)">
+      <span class="nav-icon">⬡</span> Sessions
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="status-dot"></span>
+    <span class="status-text" id="live-clock">--:--:--</span>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="page-title">Overview</span>
+    <div class="topbar-right">
+      <span class="last-updated" id="last-updated">Loading...</span>
+      <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+      <a href="/" style="font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none;">← Back to login</a>
+    </div>
+  </div>
+
+  <!-- ── Overview page ── -->
+  <div class="page active" id="page-overview">
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent-color: var(--blue)">
+        <div class="stat-label">Total Attempts</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-sub">all time</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--green)">
+        <div class="stat-label">Granted</div>
+        <div class="stat-value" id="stat-granted">—</div>
+        <div class="stat-sub">successful auths</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--red)">
+        <div class="stat-label">Denied</div>
+        <div class="stat-value" id="stat-denied">—</div>
+        <div class="stat-sub">failed attempts</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--blue)">
+        <div class="stat-label">Success Rate</div>
+        <div class="stat-value" id="stat-rate">—</div>
+        <div class="stat-sub">grant / total</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--yellow)">
+        <div class="stat-label">Lockouts</div>
+        <div class="stat-value" id="stat-locked">—</div>
+        <div class="stat-sub">accounts locked</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Recent Activity <span class="section-badge" id="log-count-overview">0 records</span></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Timestamp</th><th>Email</th><th>OTP</th><th>Face</th><th>Result</th></tr></thead>
+        <tbody id="log-body-overview"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="mini-card">
+        <div class="mini-title">Auth Activity · Last 7 Days</div>
+        <div class="bar-chart" id="bar-chart"></div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-title">Active Sessions</div>
+        <div id="sessions-mini">
+          <div class="empty">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Auth Logs page ── -->
+  <div class="page" id="page-logs">
+    <div class="section-header">
+      <div class="section-title">Auth Logs <span class="section-badge" id="log-count-full">0 records</span></div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="filter-tabs">
+          <div class="filter-tab active" onclick="filterLogs('ALL', this)">All</div>
+          <div class="filter-tab" onclick="filterLogs('GRANTED', this)">Granted</div>
+          <div class="filter-tab" onclick="filterLogs('DENIED', this)">Denied</div>
+          <div class="filter-tab" onclick="filterLogs('LOCKED OUT', this)">Locked</div>
+        </div>
+        <input class="search-bar" id="log-search" placeholder="Search email..." oninput="filterLogs(currentFilter, null)">
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Timestamp</th><th>Email</th><th>OTP</th><th>Face</th><th>Result</th></tr></thead>
+        <tbody id="log-body-full"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Users page ── -->
+  <div class="page" id="page-users">
+    <div class="section-header">
+      <div class="section-title">Registered Users <span class="section-badge" id="user-count">0 users</span></div>
+    </div>
+    <div id="users-list"><div class="empty">Loading...</div></div>
+  </div>
+
+  <!-- ── Sessions page ── -->
+  <div class="page" id="page-sessions">
+    <div class="section-header">
+      <div class="section-title">Active Sessions <span class="section-badge" id="session-count">0 active</span></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Email</th><th>Name</th><th>Expires</th><th>Status</th></tr></thead>
+        <tbody id="session-body"><tr><td colspan="4" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+let allLogs       = [];
+let currentFilter = 'ALL';
+
+// ── Clock ─────────────────────────────────────────────────────────
+function tickClock() {
+  document.getElementById('live-clock').textContent =
+    new Date().toLocaleTimeString('en-GB');
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+// ── Page navigation ───────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = { overview: 'Overview', logs: 'Auth Logs', users: 'Users', sessions: 'Sessions' };
+  document.getElementById('page-title').textContent = titles[name] || name;
+  // Load page-specific data
+  if (name === 'users')    loadUsers();
+  if (name === 'sessions') loadSessionsFull();
+  if (name === 'logs')     renderFullLogs();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────
+async function loadStats() {
+  const res  = await fetch('/api/stats');
+  const data = await res.json();
+  document.getElementById('stat-total').textContent   = data.total   ?? '—';
+  document.getElementById('stat-granted').textContent = data.granted ?? '—';
+  document.getElementById('stat-denied').textContent  = data.denied  ?? '—';
+  document.getElementById('stat-rate').textContent    = data.rate    ?? '—';
+  document.getElementById('stat-locked').textContent  = data.locked  ?? '—';
+}
+
+// ── Logs ──────────────────────────────────────────────────────────
+function rowHTML(r) {
+  const resultClass = { 'GRANTED': 'badge-green', 'DENIED': 'badge-red', 'LOCKED OUT': 'badge-yellow' }[r.result] || 'badge-muted';
+  const otpClass    = r.otp_status  === 'PASSED'  ? 'badge-green' : 'badge-red';
+  const faceClass   = r.face_status === 'PASSED'  ? 'badge-green' :
+                      r.face_status === 'SKIPPED' ? 'badge-muted' : 'badge-red';
+  return `<tr>
+    <td>${r.timestamp}</td>
+    <td style="color:var(--blue)">${r.email}</td>
+    <td><span class="badge ${otpClass}">${r.otp_status}</span></td>
+    <td><span class="badge ${faceClass}">${r.face_status}</span></td>
+    <td><span class="badge ${resultClass}">${r.result}</span></td>
+  </tr>`;
+}
+
+async function loadLogs() {
+  const res  = await fetch('/api/admin/logs');
+  const data = await res.json();
+  allLogs    = data.logs || [];
+
+  // Overview table (last 10)
+  const overviewLogs = allLogs.slice(0, 10);
+  document.getElementById('log-count-overview').textContent = `${allLogs.length} records`;
+  const tbody = document.getElementById('log-body-overview');
+  tbody.innerHTML = overviewLogs.length
+    ? overviewLogs.map(rowHTML).join('')
+    : '<tr><td colspan="5" class="empty">No logs yet.</td></tr>';
+
+  renderFullLogs();
+}
+
+function renderFullLogs() {
+  const search = (document.getElementById('log-search')?.value || '').toLowerCase();
+  let filtered = allLogs;
+  if (currentFilter !== 'ALL') filtered = filtered.filter(r => r.result === currentFilter);
+  if (search) filtered = filtered.filter(r => r.email?.toLowerCase().includes(search));
+
+  document.getElementById('log-count-full').textContent = `${filtered.length} records`;
+  const tbody = document.getElementById('log-body-full');
+  tbody.innerHTML = filtered.length
+    ? filtered.map(rowHTML).join('')
+    : '<tr><td colspan="5" class="empty">No matching logs.</td></tr>';
+}
+
+function filterLogs(filter, el) {
+  currentFilter = filter;
+  if (el) {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  renderFullLogs();
+}
+
+// ── Users ─────────────────────────────────────────────────────────
+async function loadUsers() {
+  const res  = await fetch('/api/admin/users');
+  const data = await res.json();
+  const users = data.users || [];
+
+  document.getElementById('user-count').textContent = `${users.length} users`;
+  const list = document.getElementById('users-list');
+
+  if (!users.length) {
+    list.innerHTML = '<div class="empty">No users registered yet.</div>';
+    return;
+  }
+
+  list.innerHTML = users.map(u => `
+    <div class="user-card">
+      <div class="user-avatar">${u.name ? u.name[0].toUpperCase() : '?'}</div>
+      <div class="user-info">
+        <div class="user-name">${u.name}</div>
+        <div class="user-email">${u.email}</div>
+      </div>
+      <div class="user-meta">Registered<br>${u.created}</div>
+    </div>`
+  ).join('');
+}
+
+// ── Sessions (mini) ───────────────────────────────────────────────
+async function loadSessionsMini() {
+  const res      = await fetch('/api/admin/sessions');
+  const data     = await res.json();
+  const sessions = data.sessions || [];
+  const list     = document.getElementById('sessions-mini');
+
+  if (!sessions.length) {
+    list.innerHTML = '<div class="empty">No active sessions.</div>';
+    return;
+  }
+  list.innerHTML = sessions.map(s => `
+    <div class="session-item">
+      <div>
+        <div class="session-email">${s.email}</div>
+        <div class="session-time">${s.name || '—'}</div>
+      </div>
+      <div class="session-time">exp ${s.expires.split(' ')[1]}</div>
+    </div>`
+  ).join('');
+}
+
+// ── Sessions (full page) ──────────────────────────────────────────
+async function loadSessionsFull() {
+  const res      = await fetch('/api/admin/sessions');
+  const data     = await res.json();
+  const sessions = data.sessions || [];
+
+  document.getElementById('session-count').textContent = `${sessions.length} active`;
+  const tbody = document.getElementById('session-body');
+
+  if (!sessions.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No active sessions.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sessions.map(s => `
+    <tr>
+      <td style="color:var(--blue)">${s.email}</td>
+      <td>${s.name || '—'}</td>
+      <td>${s.expires}</td>
+      <td><span class="badge badge-green">ACTIVE</span></td>
+    </tr>`
+  ).join('');
+}
+
+// ── Bar chart ─────────────────────────────────────────────────────
+async function loadChart() {
+  const res  = await fetch('/api/admin/activity');
+  const data = await res.json();
+  const days = data.days || [];
+  const chart = document.getElementById('bar-chart');
+
+  if (!days.length) { chart.innerHTML = '<div class="empty">No data.</div>'; return; }
+
+  const max = Math.max(...days.map(d => d.total), 1);
+  chart.innerHTML = days.map(d => {
+    const gH = Math.round((d.granted / max) * 72);
+    const dH = Math.round((d.denied  / max) * 72);
+    return `<div class="bar-col">
+      <div style="display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:flex-end;height:72px">
+        <div class="bar" style="height:${gH}px;background:var(--green);opacity:.7" title="${d.granted} granted"></div>
+        <div class="bar" style="height:${dH}px;background:var(--red);opacity:.7;margin-top:2px" title="${d.denied} denied"></div>
+      </div>
+      <div class="bar-label">${d.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Load all ──────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('last-updated').textContent = 'Refreshing...';
+  await Promise.all([loadStats(), loadLogs(), loadSessionsMini(), loadChart()]);
+  document.getElementById('last-updated').textContent =
+    'Updated ' + new Date().toLocaleTimeString('en-GB');
+}
+
+loadAll();
+setInterval(loadAll, 15000);
+</script>
+</body>
+</html>
